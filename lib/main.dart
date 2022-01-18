@@ -1,7 +1,6 @@
-import 'dart:html';
-
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'usermodels.dart';
 
 void main() {
   runApp(const MyApp());
@@ -14,7 +13,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Fl utter Demo',
+      title: 'Flutter Demo',
       theme: ThemeData(
         // This is the theme of your application.
         //
@@ -50,21 +49,14 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-const int fidgetPage = 4;
-
-enum appPages{
-  home,
-  front,
-  profile,
-  settings,
-  fidget
-
-}
+enum appPages { home, front, profile, settings, fidget }
 
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
   appPages _page = appPages.home;
   String? pluralId;
+  Account? _account;
+  RateLimitClient client = RateLimitClient();
 
   @override
   void initState() {
@@ -76,6 +68,12 @@ class _MyHomePageState extends State<MyHomePage> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
       pluralId = prefs.getString("id");
+      client.token = pluralId ?? '';
+      accountFromToken(pluralId ?? '', client).then((value) => {
+            setState(() {
+              _account = value;
+            })
+          });
       _counter = prefs.getInt("count") ?? 0;
       _page = appPages.front;
     });
@@ -119,10 +117,15 @@ class _MyHomePageState extends State<MyHomePage> {
           mainPage = getFidgetPage();
         }
         break;
+      case appPages.profile:
+        {
+          mainPage = getSettingsPage();
+        }
+        break;
       default:
         {
           mainPage = Center(
-            child: Text("hello $pluralId"),
+            child: Text("hello ${_account?.name}"),
           );
         }
         break;
@@ -193,8 +196,42 @@ class _MyHomePageState extends State<MyHomePage> {
 
     return Center(
         child: Column(children: [
-          field,
-        ]));
+      field,
+    ]));
+  }
+
+  Widget getSettingsPage() {
+    return Center(
+      child: Flex(
+        direction: Axis.horizontal,
+        children: (_account != null
+            ? [
+                Flexible(
+                    child: _account?.avatarUrl != 'no'
+                        ? Image.network(_account?.avatarUrl ?? '')
+                        : const Icon(Icons.face_sharp)),
+                Column(children: [
+                  Text("name " + (_account?.name ?? "")),
+                  Text("description " + (_account?.description ?? "")),
+                  Text("avatarUrl " + (_account?.avatarUrl ?? "")),
+                  Text("color " + (_account?.color ?? "")),
+                  Text("privacy.descriptionPrivacy " +
+                      (_account?.privacy.descriptionPrivacy ?? '')),
+                  Text("privacy.memberListPrivacy " +
+                      (_account?.privacy.memberListPrivacy ?? '')),
+                  Text("privacy.groupListPrivacy " +
+                      (_account?.privacy.groupListPrivacy ?? '')),
+                  Text("privacy.frontPrivacy " +
+                      (_account?.privacy.frontPrivacy ?? '')),
+                  Text("privacy.frontHistoryPrivacy " +
+                      (_account?.privacy.frontHistoryPrivacy ?? '')),
+                ])
+              ]
+            : [
+                const Flexible(child: Text("User Not Logged In")),
+              ]),
+      ),
+    );
   }
 
   Widget getFidgetPage() {
@@ -231,9 +268,35 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void fetchValidateKey(String value) async {
-    value = value;
+    if (value.matchAsPrefix('YyNVAMwfZ1UYzoQ+RdkHiX3I2ioMpOsAVmF+RK1TTiTpamE1lydp5cFFaS6HobN+') == null) {
+      await showDialog<void>(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+              title: const Text('uh oh!'),
+              content: Text(
+                  'You typed "$value", which has length ${value.characters.length}. we were expecting a token of length X'),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: const Text('OK'),
+                )
+              ]);
+        },
+      );
+      return;
+    }
+
     setState(() {
       pluralId = value;
+      client.token = pluralId ?? '';
+      accountFromToken(pluralId ?? '', client).then((value) => {
+            setState(() {
+              _account = value;
+            })
+          });
       _page = appPages.front;
     });
     await showDialog<void>(
