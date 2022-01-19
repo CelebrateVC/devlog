@@ -57,6 +57,8 @@ class _MyHomePageState extends State<MyHomePage> {
   String? pluralId;
   Account? _account;
   RateLimitClient client = RateLimitClient();
+  List<Switches> _switch = [];
+  Map<String, String> membersLookup = {};
 
   @override
   void initState() {
@@ -64,17 +66,33 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
   }
 
+  void updateState() {
+    client.token = pluralId ?? '';
+    accountFromToken(client).then((x) {
+      setState(() {
+        _account = x;
+      });
+    });
+    getSwitches(client, _switch).then((x) {
+      if (x.isNotEmpty) {
+        setState(() {
+          _switch = x;
+        });
+      }
+    });
+    getMembers(client, membersLookup).then((x) {
+      setState(() {
+        membersLookup = x;
+      });
+    });
+  }
+
   void _getLogin() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
       pluralId = prefs.getString("id");
-      client.token = pluralId ?? '';
-      accountFromToken(pluralId ?? '', client).then((value) => {
-            setState(() {
-              _account = value;
-            })
-          });
       _counter = prefs.getInt("count") ?? 0;
+      updateState();
       _page = appPages.front;
     });
   }
@@ -122,6 +140,11 @@ class _MyHomePageState extends State<MyHomePage> {
           mainPage = getSettingsPage();
         }
         break;
+      case appPages.front:
+        {
+          mainPage = getFrontsPage();
+        }
+        break;
       default:
         {
           mainPage = Center(
@@ -131,59 +154,61 @@ class _MyHomePageState extends State<MyHomePage> {
         break;
     }
 
+    const home = BottomNavigationBarItem(
+        icon: Icon(Icons.home), label: 'Home', backgroundColor: Colors.black);
+
+    const frontLog = BottomNavigationBarItem(
+        icon: Icon(Icons.switch_account),
+        activeIcon: Icon(Icons.ac_unit),
+        label: 'Front Log',
+        backgroundColor: Colors.black);
+
+    const profiles = BottomNavigationBarItem(
+        icon: Icon(Icons.face),
+        label: "Profiles",
+        backgroundColor: Colors.black);
+
+    const settings = BottomNavigationBarItem(
+        icon: Icon(Icons.settings),
+        label: "Settings",
+        backgroundColor: Colors.black);
+
+    const fidget = BottomNavigationBarItem(
+        icon: Icon(Icons.spa), label: "Fidget", backgroundColor: Colors.black);
+
+    BottomNavigationBar bottomnav = BottomNavigationBar(
+      onTap: (i) {
+        setState(() {
+          _page = appPages.values[i];
+        });
+      },
+      items: _account == null
+          ? const [home, fidget]
+          : const [home, frontLog, profiles, settings, fidget],
+      currentIndex: appPages.values.indexOf(_page),
+    );
+
     // The Flutter framework has been optimized to make rerunning build methods
     // fast, so that you can just rebuild anything that needs updating rather
     // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: mainPage,
-      floatingActionButton: (_page != appPages.fidget)
-          ? null
-          : FloatingActionButton(
-              onPressed: _incrementCounter,
-              tooltip: 'Increment',
-              child: const Icon(Icons.add),
-            ), // This trailing comma makes auto-formatting nicer for build methods.
-      bottomNavigationBar: BottomNavigationBar(
-        onTap: (i) {
-          setState(() {
-            _page = appPages.values[i];
-          });
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-            backgroundColor: Colors.black,
+    return Theme(
+        data: ThemeData(primarySwatch: Colors.orange),
+        child: Scaffold(
+          appBar: AppBar(
+            // Here we take the value from the MyHomePage object that was created by
+            // the App.build method, and use it to set our appbar title.
+            title: Text(widget.title),
           ),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.switch_account),
-              activeIcon: Icon(Icons.ac_unit),
-              label: 'Front Log',
-              backgroundColor: Colors.black),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.face),
-              label: "Profiles",
-              backgroundColor: Colors.black),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.settings),
-              label: "Settings",
-              backgroundColor: Colors.black),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.spa),
-              label: "Fidget",
-              backgroundColor: Colors.black),
-        ],
-        selectedItemColor: Colors.blue[50],
-        unselectedItemColor: Colors.blue[100],
-        backgroundColor: Colors.black,
-        currentIndex: appPages.values.indexOf(_page),
-      ),
-    );
+          body: mainPage,
+          floatingActionButton: (_page != appPages.fidget)
+              ? null
+              : FloatingActionButton(
+                  onPressed: _incrementCounter,
+                  tooltip: 'Increment',
+                  child: const Icon(Icons.add),
+                ), // This trailing comma makes auto-formatting nicer for build methods.
+          bottomNavigationBar: bottomnav,
+        ));
   }
 
   Widget getLoginPage() {
@@ -201,6 +226,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Widget getSettingsPage() {
+    // TODO: Nest Members also
     return Center(
       child: Flex(
         direction: Axis.horizontal,
@@ -267,8 +293,53 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+  Widget getFrontsPage() {
+    if (_switch.isEmpty) {
+      return const Text("No Data Here Yet");
+    }
+
+    return CustomScrollView(
+      slivers: [
+        SliverList(delegate:
+            SliverChildBuilderDelegate((BuildContext context, int index) {
+          if (_switch.length - index == 1) {
+            getMoreSwitches(client, _switch).then((x) {
+              if (x.isNotEmpty) {
+                setState(() {
+                  _switch = x;
+                });
+              }
+            });
+          }
+          if (index < _switch.length) {
+            return getFrontLog(context, index);
+          }
+        }))
+      ],
+    );
+  }
+
+  Widget getFrontLog(BuildContext context, int i) {
+    // TODO: PFP of the fronter
+
+    print(i);
+    print(membersLookup);
+    Switches _swit = _switch[i];
+
+    List<String> fronters = [];
+    for (var member in _swit.members) {
+      fronters.add(membersLookup[member] ?? "Unknown Member");
+    }
+
+    return Container(
+      alignment: Alignment.centerLeft,
+      color: Colors.teal[100 * (i % 9)],
+      child: Text('${_swit.timestamp} - Fronters: $fronters'),
+    );
+  }
+
   void fetchValidateKey(String value) async {
-    if (value.matchAsPrefix('YyNVAMwfZ1UYzoQ+RdkHiX3I2ioMpOsAVmF+RK1TTiTpamE1lydp5cFFaS6HobN+') == null) {
+    if (value.length != 64) {
       await showDialog<void>(
         context: context,
         builder: (BuildContext context) {
@@ -291,12 +362,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     setState(() {
       pluralId = value;
-      client.token = pluralId ?? '';
-      accountFromToken(pluralId ?? '', client).then((value) => {
-            setState(() {
-              _account = value;
-            })
-          });
+      updateState();
       _page = appPages.front;
     });
     await showDialog<void>(
