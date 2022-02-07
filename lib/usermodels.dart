@@ -1,6 +1,5 @@
 import 'dart:convert';
-import 'dart:html';
-import 'dart:io';
+import 'dart:developer';
 import 'package:http/http.dart' as http;
 
 class RateLimitClient extends http.BaseClient {
@@ -13,8 +12,7 @@ class RateLimitClient extends http.BaseClient {
   Future<http.StreamedResponse> send(http.BaseRequest request) {
     var now = DateTime.now();
     if (now.isBefore(earlier)) {
-      print(
-          "data requests too close together sleeping for ${earlier.difference(now)}");
+      log("data requests too close together sleeping for ${earlier.difference(now)}");
       Future.delayed(earlier.difference(now));
     }
     earlier = later;
@@ -53,6 +51,8 @@ class System {
 class ProxyTag {
   String? prefix;
   String? suffix;
+
+  ProxyTag(this.prefix, this.suffix);
 }
 
 class MemberPrivacy {
@@ -151,104 +151,183 @@ class Switches {
 //System Guild
 //Member Guild
 
-Future<System?> systemFromToken(RateLimitClient client) async {
-  if (client.token.isEmpty) {
-    return null;
+class PluralKitWrapper {
+  RateLimitClient client = RateLimitClient();
+
+  PluralKitWrapper(String token) {
+    client.token = token;
   }
-  http.Response res =
-      await client.get(Uri.parse('https://api.pluralkit.me/v2/systems/@me'));
-  return systemFromResp(res);
-}
 
-System? systemFromResp(http.Response resp) {
-  print(resp);
-  if (resp.statusCode >= 300) {
-    return null;
+  Future<System?> getSystem({String systemRef = "@me"}) async {
+    if (client.token.isEmpty) {
+      return null;
+    }
+    http.Response resp = await client
+        .get(Uri.parse('https://api.pluralkit.me/v2/systems/' + systemRef));
+
+    if (resp.statusCode >= 300) {
+      return null;
+    }
+    var decode = jsonDecode(utf8.decode(resp.bodyBytes)) as Map;
+
+    return System(
+        decode['id'],
+        decode['uuid'],
+        decode['name'] ?? 'no_name',
+        decode['description'] ?? 'no',
+        decode['tag'],
+        decode['avatarUrl'] ?? 'no',
+        decode['banner'],
+        decode['color'] ?? 'no',
+        decode['created'],
+        SystemPrivacy(
+            decode['privacy']['description_privacy'] ?? 'unreachable',
+            decode['privacy']['member_list_privacy'] ?? 'unreachable',
+            decode['privacy']['group_list_privacy'] ?? 'unreachable',
+            decode['privacy']['front_privacy'] ?? 'unreachable',
+            decode['privacy']['front_history_privacy'] ?? 'unreachable'));
   }
-  var decode = jsonDecode(utf8.decode(resp.bodyBytes)) as Map;
-  print(decode);
-  return System(
-      decode['id'],
-      decode['uuid'],
-      decode['name'] ?? 'no_name',
-      decode['description'] ?? 'no',
-      decode['tag'],
-      decode['avatarUrl'] ?? 'no',
-      decode['banner'],
-      decode['color'] ?? 'no',
-      decode['created'],
-      SystemPrivacy(
-          decode['privacy']['description_privacy'] ?? 'unreachable',
-          decode['privacy']['member_list_privacy'] ?? 'unreachable',
-          decode['privacy']['group_list_privacy'] ?? 'unreachable',
-          decode['privacy']['front_privacy'] ?? 'unreachable',
-          decode['privacy']['front_history_privacy'] ?? 'unreachable'));
-}
 
-Future<List<Switches>> _getSwitches(
-    RateLimitClient client, List<Switches> existing, Uri url) async {
-  if (client.token.isEmpty) {
-    return [];
+  Future<Map<String, Member>> getMembers(Map<String, Member> map,
+      {String systemRef = "@me"}) async {
+    if (map.isNotEmpty | client.token.isEmpty) {
+      log("map is empty? ${map.isEmpty}");
+      return map;
+    }
+
+    String uri =
+        "https://api.pluralkit.me/v2/systems/" + systemRef + "/members";
+
+    http.Response res = await client.get(Uri.parse(uri));
+    var decode = jsonDecode(utf8.decode(res.bodyBytes)) as List;
+
+    Map<String, Member> result = {};
+    for (var member in decode) {
+      List<ProxyTag> proxyTags = [];
+      for (var tag in member['proxy_tags']) {
+        proxyTags.add(ProxyTag(tag['prefix'], tag['suffix']));
+      }
+      Map<String, String> priv = member['privacy'];
+      MemberPrivacy privacy = MemberPrivacy(
+          priv['description_privacy'] ?? 'unknown',
+          priv['visibility'] ?? 'unknown',
+          priv['name_privacy'] ?? 'unknown',
+          priv['birthday_privacy'] ?? 'unknown',
+          priv['pronoun_privacy'] ?? 'unknown',
+          priv['avatar_privacy'] ?? 'unknown',
+          priv['metadata_privacy'] ?? 'unknown');
+
+      Member mem = Member(
+          member['id'],
+          member['uuid'],
+          member['name'],
+          member['display_name'],
+          member['color'],
+          member['birthday'],
+          member['pronouns'],
+          member['avatar_url'],
+          member['banner'],
+          member['description'],
+          member['created'],
+          proxyTags,
+          member['keep_proxy'],
+          privacy);
+      result[member['id']] = mem;
+    }
+    return result;
   }
-  http.Response res = await client.get(url);
 
-  var decode = jsonDecode(utf8.decode(res.bodyBytes)) as List;
+  Future<List<Switches>> _getSwitches(List<Switches> existing, Uri url) async {
+    if (client.token.isEmpty) {
+      return [];
+    }
+    http.Response res = await client.get(url);
 
-  var switches =
-      decode.map((x) => Switches(x["id"], x["timestamp"], x["members"]));
+    var decode = jsonDecode(utf8.decode(res.bodyBytes)) as List;
 
-  bool added = false;
-  for (var element in switches) {
-    if (!existing.any((x) => x.timestamp == element.timestamp)) {
-      existing.add(element);
-      added = true;
+    var switches =
+        decode.map((x) => Switches(x["id"], x["timestamp"], x["members"]));
+
+    bool added = false;
+    for (var element in switches) {
+      if (!existing.any((x) => x.timestamp == element.timestamp)) {
+        existing.add(element);
+        added = true;
+      }
+    }
+    if (added) {
+      existing.sort((a, b) => -a.timestamp.compareTo(b.timestamp));
+
+      return existing;
+    } else {
+      return [];
     }
   }
-  if (added) {
-    existing.sort((a, b) => -a.timestamp.compareTo(b.timestamp));
 
-    return existing;
-  } else {
-    return [];
+  Future<List<Switches>> getSwitches(List<Switches> existing,
+      {String systemRef = "@me"}) async {
+    return _getSwitches(existing,
+        Uri.parse("https://api.pluralkit.me/v2/systems/@me/switches"));
   }
-}
 
-Future<Map<String, String>> getMembers(
-    RateLimitClient client, Map<String, String> map) async {
-  print("getting members");
-  if (map.isNotEmpty | client.token.isEmpty) {
-    print("map is empty? ${map.isEmpty}");
-    return map;
+  Future<List<Switches>> getMoreSwitches(List<Switches> existing,
+      {String systemRef = "@me"}) {
+    String st = "https://api.pluralkit.me/v2/systems/@me/switches?before=";
+
+    Switches earliest =
+        existing.reduce((a, b) => (a.timestamp.isAfter(b.timestamp)) ? b : a);
+
+    st += earliest.timestamp.toIso8601String();
+
+    log('Earliest Switch: '+st);
+
+    return _getSwitches(existing, Uri.parse(st));
   }
-  http.Response res = await client
-      .get(Uri.parse("https://api.pluralkit.me/v2/systems/@me/members"));
-  var decode = jsonDecode(utf8.decode(res.bodyBytes)) as List;
 
-  print(decode);
+  /* 
+  === Unimplemented Methods ===
+  AS of V2: https://pluralkit.me/api/endpoints/#switches
+  for current state of the applicaiton, there is no need to implement these
+  if in the future this is maintained as the official Flutter library => to do
 
-  Map<String, String> result = {};
-  for (var member in decode) {
-    result[member['id']] = member['name'];
-  }
-  return result;
-}
+  - System - 
+  PATCH  /systems/{sysRef}
+  GET    /systems/{sysRef}/settings
+  PATCH  /systems/{sysRef}/settings
+  GET    /systems/{sysRef}/guilds/{guildID}
+  PATCH  /systems/{sysRef}/guilds/{guildID}
 
-Future<List<Switches>> getSwitches(
-    RateLimitClient client, List<Switches> existing) async {
-  return _getSwitches(client, existing,
-      Uri.parse("https://api.pluralkit.me/v2/systems/@me/switches"));
-}
+  - Members -
+  POST   /members
+  GET    /members/{memberRef}
+  PATCH  /members/{memberRef}
+  DELETE /members/{memberRef}
+  GET    /members/{memberRef}/groups/add
+  POST   /members/{memberRef}/groups/remove
+  POST   /members/{memberRef}/groups/overwrite
+  GET    /members/{memberRef}/guilds/{guildId}
+  PATCH  /members/{memberRef}/guilds/{guildId}
 
-Future<List<Switches>> getMoreSwitches(
-    RateLimitClient client, List<Switches> existing) {
-  String st = "https://api.pluralkit.me/v2/systems/@me/switches?before=";
+ - Groups -
+  GET    /systems/{sysRef}/groups
+  POST   /groups
+  GET    /groups/{groupRef}
+  PATCH  /groups/{groupRef}
+  DELETE /groups/{groupRef}
+  GET    /groups/{groupRef}/members
+  POST   /groups/{groupRef}/add
+  POST   /groups/{groupRef}/remove
+  POST   /groups/{groupRef}/overwrite
 
-  Switches earliest =
-      existing.reduce((a, b) => (a.timestamp.isAfter(b.timestamp)) ? b : a);
+  - Switches -
+  GET    /systems/{sysRef}/fronters
+  POST   /systems/{sysRef}/switches
+  GET    /systems/{sysRef}/switches/{switchRef}
+  PATCH  /systems/{sysRef}/switches/{switchRef}
+  PATCH  /systems/{sysRef}/switches/{switchRef}/members
+  DELETE /systems/{sysRef}/switches/{switchRef}
 
-  st += earliest.timestamp.toIso8601String();
 
-  print(st);
+  */
 
-  return _getSwitches(client, existing, Uri.parse(st));
 }

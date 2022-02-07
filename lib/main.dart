@@ -56,9 +56,9 @@ class _MyHomePageState extends State<MyHomePage> {
   appPages _page = appPages.home;
   String? pluralId;
   System? _system;
-  RateLimitClient client = RateLimitClient();
+  PluralKitWrapper pk = PluralKitWrapper('');
   List<Switches> _switch = [];
-  Map<String, String> membersLookup = {};
+  Map<String, Member> membersLookup = {};
 
   @override
   void initState() {
@@ -67,24 +67,35 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void updateState() {
-    client.token = pluralId ?? '';
-    systemFromToken(client).then((x) {
+    String pid = pluralId ?? '';
+    if (pk.client.token != pid) {
+      pk = PluralKitWrapper(pid);
+    }
+    if (_system == null) {
+    pk.getSystem().then((x) {
       setState(() {
         _system = x;
       });
     });
-    getSwitches(client, _switch).then((x) {
+    }
+
+    if (_switch.isEmpty){
+    pk.getSwitches(_switch).then((x) {
       if (x.isNotEmpty) {
         setState(() {
           _switch = x;
         });
       }
     });
-    getMembers(client, membersLookup).then((x) {
+    }
+
+    if (membersLookup.isEmpty){
+    pk.getMembers(membersLookup).then((x) {
       setState(() {
         membersLookup = x;
       });
     });
+  }
   }
 
   void _getLogin() async {
@@ -303,7 +314,7 @@ class _MyHomePageState extends State<MyHomePage> {
         SliverList(delegate:
             SliverChildBuilderDelegate((BuildContext context, int index) {
           if (_switch.length - index == 1) {
-            getMoreSwitches(client, _switch).then((x) {
+            pk.getMoreSwitches(_switch).then((x) {
               if (x.isNotEmpty) {
                 setState(() {
                   _switch = x;
@@ -322,13 +333,33 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget getFrontLog(BuildContext context, int i) {
     // TODO: PFP of the fronter
 
-    print(i);
-    print(membersLookup);
     Switches _swit = _switch[i];
 
-    List<String> fronters = [];
+    List<Member> fronters = [];
     for (var member in _swit.members) {
-      fronters.add(membersLookup[member] ?? "Unknown Member");
+      fronters.add(membersLookup[member] ??
+          Member(
+              'aaaa',
+              'df6fdea1-10c3-474c-ae62-e63def80de0b',
+              'unknown memberId ' + member,
+              null,
+              '#ffffff',
+              null,
+              null,
+              null,
+              null,
+              null,
+              DateTime.now(),
+              [],
+              false,
+              MemberPrivacy(
+                  'descriptionPrivacy',
+                  'visibility',
+                  'namePrivacy',
+                  'birthdayPrivacy',
+                  'pronounPrivacy',
+                  'avatarPrivacy',
+                  'metadataPrivacy')));
     }
 
     return Container(
