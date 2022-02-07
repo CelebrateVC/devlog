@@ -55,7 +55,7 @@ class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
   appPages _page = appPages.home;
   String? pluralId;
-  Account? _account;
+  System? _system;
   RateLimitClient client = RateLimitClient();
   List<Switches> _switch = [];
   Map<String, String> membersLookup = {};
@@ -68,9 +68,9 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void updateState() {
     client.token = pluralId ?? '';
-    accountFromToken(client).then((x) {
+    systemFromToken(client).then((x) {
       setState(() {
-        _account = x;
+        _system = x;
       });
     });
     getSwitches(client, _switch).then((x) {
@@ -148,7 +148,7 @@ class _MyHomePageState extends State<MyHomePage> {
       default:
         {
           mainPage = Center(
-            child: Text("hello ${_account?.name}"),
+            child: Text("hello ${_system?.name}"),
           );
         }
         break;
@@ -182,7 +182,7 @@ class _MyHomePageState extends State<MyHomePage> {
           _page = appPages.values[i];
         });
       },
-      items: _account == null
+      items: _system == null
           ? const [home, fidget]
           : const [home, frontLog, profiles, settings, fidget],
       currentIndex: appPages.values.indexOf(_page),
@@ -230,27 +230,27 @@ class _MyHomePageState extends State<MyHomePage> {
     return Center(
       child: Flex(
         direction: Axis.horizontal,
-        children: (_account != null
+        children: (_system != null
             ? [
                 Flexible(
-                    child: _account?.avatarUrl != 'no'
-                        ? Image.network(_account?.avatarUrl ?? '')
+                    child: _system?.avatarUrl != 'no'
+                        ? Image.network(_system?.avatarUrl ?? '')
                         : const Icon(Icons.face_sharp)),
                 Column(children: [
-                  Text("name " + (_account?.name ?? "")),
-                  Text("description " + (_account?.description ?? "")),
-                  Text("avatarUrl " + (_account?.avatarUrl ?? "")),
-                  Text("color " + (_account?.color ?? "")),
+                  Text("name " + (_system?.name ?? "")),
+                  Text("description " + (_system?.description ?? "")),
+                  Text("avatarUrl " + (_system?.avatarUrl ?? "")),
+                  Text("color " + (_system?.color ?? "")),
                   Text("privacy.descriptionPrivacy " +
-                      (_account?.privacy.descriptionPrivacy ?? '')),
+                      (_system?.privacy.descriptionPrivacy ?? '')),
                   Text("privacy.memberListPrivacy " +
-                      (_account?.privacy.memberListPrivacy ?? '')),
+                      (_system?.privacy.memberListPrivacy ?? '')),
                   Text("privacy.groupListPrivacy " +
-                      (_account?.privacy.groupListPrivacy ?? '')),
+                      (_system?.privacy.groupListPrivacy ?? '')),
                   Text("privacy.frontPrivacy " +
-                      (_account?.privacy.frontPrivacy ?? '')),
+                      (_system?.privacy.frontPrivacy ?? '')),
                   Text("privacy.frontHistoryPrivacy " +
-                      (_account?.privacy.frontHistoryPrivacy ?? '')),
+                      (_system?.privacy.frontHistoryPrivacy ?? '')),
                 ])
               ]
             : [
