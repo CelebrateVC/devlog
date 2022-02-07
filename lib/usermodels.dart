@@ -38,10 +38,10 @@ class System {
   String uuid;
   String name;
   String? description;
-  String tag;
+  String? tag;
   String? avatarUrl;
   String? banner;
-  String color;
+  String? color;
   DateTime created;
   SystemPrivacy privacy;
   System(this.id, this.uuid, this.name, this.description, this.tag,
@@ -79,7 +79,7 @@ class Member {
   String uuid;
   String name;
   String? displayName;
-  String color;
+  String? color;
   String? birthday;
   String? pronouns;
   String? avatarUrl;
@@ -179,7 +179,7 @@ class PluralKitWrapper {
         decode['avatarUrl'] ?? 'no',
         decode['banner'],
         decode['color'] ?? 'no',
-        decode['created'],
+        DateTime.parse(decode['created']),
         SystemPrivacy(
             decode['privacy']['description_privacy'] ?? 'unreachable',
             decode['privacy']['member_list_privacy'] ?? 'unreachable',
@@ -207,7 +207,7 @@ class PluralKitWrapper {
       for (var tag in member['proxy_tags']) {
         proxyTags.add(ProxyTag(tag['prefix'], tag['suffix']));
       }
-      Map<String, String> priv = member['privacy'];
+      var priv = member['privacy'];
       MemberPrivacy privacy = MemberPrivacy(
           priv['description_privacy'] ?? 'unknown',
           priv['visibility'] ?? 'unknown',
@@ -228,7 +228,7 @@ class PluralKitWrapper {
           member['avatar_url'],
           member['banner'],
           member['description'],
-          member['created'],
+          DateTime.parse(member['created']),
           proxyTags,
           member['keep_proxy'],
           privacy);
