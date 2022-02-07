@@ -279,7 +279,7 @@ class PluralKitWrapper {
 
     st += earliest.timestamp.toIso8601String();
 
-    log('Earliest Switch: '+st);
+    log('Earliest Switch: ' + st);
 
     return _getSwitches(existing, Uri.parse(st));
   }
@@ -330,4 +330,29 @@ class PluralKitWrapper {
 
   */
 
+}
+
+Member defaultMember(String memberID) {
+  return Member(
+      'aaaa',
+      'df6fdea1-10c3-474c-ae62-e63def80de0b',
+      'unknown memberId ' + memberID,
+      null,
+      '#ffffff',
+      null,
+      null,
+      null,
+      null,
+      null,
+      DateTime.now(),
+      [],
+      false,
+      MemberPrivacy(
+          'descriptionPrivacy',
+          'visibility',
+          'namePrivacy',
+          'birthdayPrivacy',
+          'pronounPrivacy',
+          'avatarPrivacy',
+          'metadataPrivacy'));
 }

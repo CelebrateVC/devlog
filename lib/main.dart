@@ -72,30 +72,30 @@ class _MyHomePageState extends State<MyHomePage> {
       pk = PluralKitWrapper(pid);
     }
     if (_system == null) {
-    pk.getSystem().then((x) {
-      setState(() {
-        _system = x;
-      });
-    });
-    }
-
-    if (_switch.isEmpty){
-    pk.getSwitches(_switch).then((x) {
-      if (x.isNotEmpty) {
+      pk.getSystem().then((x) {
         setState(() {
-          _switch = x;
+          _system = x;
         });
-      }
-    });
+      });
     }
 
-    if (membersLookup.isEmpty){
-    pk.getMembers(membersLookup).then((x) {
-      setState(() {
-        membersLookup = x;
+    if (_switch.isEmpty) {
+      pk.getSwitches(_switch).then((x) {
+        if (x.isNotEmpty) {
+          setState(() {
+            _switch = x;
+          });
+        }
       });
-    });
-  }
+    }
+
+    if (membersLookup.isEmpty) {
+      pk.getMembers(membersLookup).then((x) {
+        setState(() {
+          membersLookup = x;
+        });
+      });
+    }
   }
 
   void _getLogin() async {
@@ -237,7 +237,6 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Widget getSettingsPage() {
-    // TODO: Nest Members also
     return Center(
       child: Flex(
         direction: Axis.horizontal,
@@ -262,6 +261,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       (_system?.privacy.frontPrivacy ?? '')),
                   Text("privacy.frontHistoryPrivacy " +
                       (_system?.privacy.frontHistoryPrivacy ?? '')),
+                  // TODO: Expandable boxes for members
                 ])
               ]
             : [
@@ -325,47 +325,49 @@ class _MyHomePageState extends State<MyHomePage> {
           if (index < _switch.length) {
             return getFrontLog(context, index);
           }
+          return null;
         }))
       ],
     );
   }
 
   Widget getFrontLog(BuildContext context, int i) {
-    // TODO: PFP of the fronter
+    // TODO: group by days
 
     Switches _swit = _switch[i];
 
     List<Member> fronters = [];
     for (var member in _swit.members) {
-      fronters.add(membersLookup[member] ??
-          Member(
-              'aaaa',
-              'df6fdea1-10c3-474c-ae62-e63def80de0b',
-              'unknown memberId ' + member,
-              null,
-              '#ffffff',
-              null,
-              null,
-              null,
-              null,
-              null,
-              DateTime.now(),
-              [],
-              false,
-              MemberPrivacy(
-                  'descriptionPrivacy',
-                  'visibility',
-                  'namePrivacy',
-                  'birthdayPrivacy',
-                  'pronounPrivacy',
-                  'avatarPrivacy',
-                  'metadataPrivacy')));
+      fronters.add(membersLookup[member] ?? defaultMember(member));
     }
 
     return Container(
-      alignment: Alignment.centerLeft,
-      color: Colors.teal[100 * (i % 9)],
-      child: Text('${_swit.timestamp} - Fronters: $fronters'),
+        alignment: Alignment.centerLeft,
+        color: Colors.teal[100 * (i % 9)],
+        child: Flex(direction: Axis.horizontal, children: [
+          Text('${_swit.timestamp} - Fronters:'),
+          const Spacer(flex: 1),
+          Column(children: fronters.map(displayFronter).toList()),
+          const Spacer(flex: 3,)
+        ]),);
+  }
+
+  Widget displayFronter(Member e) {
+    return Flex(
+      direction: Axis.horizontal,
+      children: [
+        e.avatarUrl == null
+            ? CircleAvatar(
+                backgroundColor: Colors.brown.shade800,
+                child: Text(e.name[0]),
+                minRadius: 1.5,
+                maxRadius: 10.0,
+              )
+            : CircleAvatar(
+                backgroundImage: NetworkImage(e.avatarUrl ?? ""),
+              ),
+        Text(e.displayName??e.name),
+      ],
     );
   }
 
