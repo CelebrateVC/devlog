@@ -240,36 +240,94 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Widget getSettingsPage() {
-    return Center(
-      child: Flex(
-        direction: Axis.horizontal,
-        children: (_system != null
-            ? [
-                Flexible(
-                    child: _system?.avatarUrl != 'no'
-                        ? Image.network(_system?.avatarUrl ?? '')
-                        : const Icon(Icons.face_sharp)),
-                Column(children: [
-                  Text("name " + (_system?.name ?? "")),
-                  Text("description " + (_system?.description ?? "")),
-                  Text("avatarUrl " + (_system?.avatarUrl ?? "")),
-                  Text("color " + (_system?.color ?? "")),
-                  Text("privacy.descriptionPrivacy " +
-                      (_system?.privacy.descriptionPrivacy ?? '')),
-                  Text("privacy.memberListPrivacy " +
-                      (_system?.privacy.memberListPrivacy ?? '')),
-                  Text("privacy.groupListPrivacy " +
-                      (_system?.privacy.groupListPrivacy ?? '')),
-                  Text("privacy.frontPrivacy " +
-                      (_system?.privacy.frontPrivacy ?? '')),
-                  Text("privacy.frontHistoryPrivacy " +
-                      (_system?.privacy.frontHistoryPrivacy ?? '')),
-                  // TODO: Expandable boxes for members
-                ])
-              ]
-            : [
-                const Flexible(child: Text("User Not Logged In")),
+    Widget mainSettings = Row(
+      children: (_system != null
+          ? [
+              (_system?.avatarUrl != 'no'
+                  ? CircleAvatar(
+                      backgroundImage: NetworkImage(_system?.avatarUrl ?? ''))
+                  : const Icon(Icons.face_sharp)),
+              const Text("     "),
+              Column(
+                children: const [
+                  Text("name"),
+                  Text("description"),
+                  Text("color")
+                ],
+                crossAxisAlignment: CrossAxisAlignment.start,
+              ),
+              const Text("  "),
+              Column(children: [
+                Text(_system?.name ?? ""),
+                Text(_system?.description ?? ""),
+                Text(_system?.color ?? "")
               ]),
+              const Spacer(
+                flex: 5,
+              ),
+              const Text("Privacy:    "),
+              Column(
+                children: const [
+                  Text("descriptionPrivacy"),
+                  Text("memberListPrivacy"),
+                  Text("groupListPrivacy"),
+                  Text("frontPrivacy"),
+                  Text("frontHistoryPrivacy")
+                ],
+                crossAxisAlignment: CrossAxisAlignment.start,
+              ),
+              const Text("  "),
+              Column(
+                children: [
+                  Text(_system?.privacy.descriptionPrivacy ?? ''),
+                  Text(_system?.privacy.memberListPrivacy ?? ''),
+                  Text(_system?.privacy.groupListPrivacy ?? ''),
+                  Text(_system?.privacy.frontPrivacy ?? ''),
+                  Text(_system?.privacy.frontHistoryPrivacy ?? '')
+                ],
+                crossAxisAlignment: CrossAxisAlignment.start,
+              ),
+              const Spacer()
+            ]
+          : [
+              const Flexible(child: Text("User Not Logged In")),
+            ]),
+    );
+
+    return Center(
+      child: Column(children: [mainSettings, memberSettings()]),
+    );
+  }
+
+  Widget memberSettings() {
+    return Column(
+      children: membersLookup.values.map(memberCard).toList(),
+    );
+  }
+
+  Widget memberCard(Member mem) {
+    return Card(
+      child: ExpansionTile(
+        title: Text(mem.displayName ?? mem.name),
+        children: [
+              RichText(
+                  text: TextSpan(text: mem.name, children: [
+                mem.pronouns != null
+                    ? TextSpan(
+                        text: "(${mem.pronouns})",
+                        style: const TextStyle(fontWeight: FontWeight.bold))
+                    : const TextSpan()
+              ])),
+              Text(mem.descripiton ?? ""),
+              Text("Created: ${mem.created}"),
+              const Text("")
+            ] +
+            [
+              for (var prox in mem.proxyTags)
+                Text("Proxy: ${prox.prefix ?? ''}Text${prox.suffix ?? ''}")
+            ],
+        expandedCrossAxisAlignment: CrossAxisAlignment.start,
+        expandedAlignment: Alignment.topLeft,
       ),
     );
   }
@@ -353,15 +411,17 @@ class _MyHomePageState extends State<MyHomePage> {
       fronters.add(membersLookup[member] ?? defaultMember(member));
     }
 
-    Widget frontersWidget = fronters.isEmpty ? const Spacer() :Column(children: [
-      for (var i = 0; i <= (fronters.length / 3); i++)
-        Row(
-          children: fronters
-              .getRange(i * 3, min((i + 1) * 3, fronters.length))
-              .map(displayFronter)
-              .toList(),
-        )
-    ]);
+    Widget frontersWidget = fronters.isEmpty
+        ? const Spacer()
+        : Column(children: [
+            for (var i = 0; i <= (fronters.length / 3); i++)
+              Row(
+                children: fronters
+                    .getRange(i * 3, min((i + 1) * 3, fronters.length))
+                    .map(displayFronter)
+                    .toList(),
+              )
+          ]);
 
     return Container(
       alignment: Alignment.centerLeft,
