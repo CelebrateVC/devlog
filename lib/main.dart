@@ -340,16 +340,29 @@ class _MyHomePageState extends State<MyHomePage> {
     for (var member in _swit.members) {
       fronters.add(membersLookup[member] ?? defaultMember(member));
     }
+    
+    Widget frontersWidget = fronters.isEmpty ? const Spacer() :Column(children: [
+      for (var i = 0; i <= (fronters.length / 3); i++)
+        Row(
+          children: fronters
+              .getRange(i * 3, min((i + 1) * 3, fronters.length))
+              .map(displayFronter)
+              .toList(),
+        )
+    ]);
 
     return Container(
-        alignment: Alignment.centerLeft,
-        color: Colors.teal[100 * (i % 9)],
-        child: Flex(direction: Axis.horizontal, children: [
-          Text('${_swit.timestamp} - Fronters:'),
-          const Spacer(flex: 1),
-          Column(children: fronters.map(displayFronter).toList()),
-          const Spacer(flex: 3,)
-        ]),);
+      alignment: Alignment.centerLeft,
+      color: Colors.teal[100 * (i % 9)],
+      child: Flex(direction: Axis.horizontal, children: [
+        Text('${timeString(_swit.timestamp)} - Fronters:'),
+        const Text("      "),
+        frontersWidget,
+        const Spacer(
+          flex: 3,
+        )
+      ]),
+    );
   }
 
   Widget displayFronter(Member e) {
@@ -366,7 +379,7 @@ class _MyHomePageState extends State<MyHomePage> {
             : CircleAvatar(
                 backgroundImage: NetworkImage(e.avatarUrl ?? ""),
               ),
-        Text(e.displayName??e.name),
+        Text("  " + (e.displayName ?? e.name) + "  "),
       ],
     );
   }
@@ -416,4 +429,12 @@ class _MyHomePageState extends State<MyHomePage> {
       },
     );
   }
+}
+
+String dateString(DateTime timestamp) {
+  return '${timestamp.year}-${NumberFormat("00").format(timestamp.month)}-${NumberFormat("00").format(timestamp.day)}';
+}
+
+String timeString(DateTime timestamp) {
+  return '    ${NumberFormat("00").format(timestamp.hour)}:${NumberFormat("00").format(timestamp.minute)}:${NumberFormat("00").format(timestamp.second)}';
 }
