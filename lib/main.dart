@@ -1,4 +1,7 @@
+import 'dart:math' show min;
+
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'usermodels.dart';
 
@@ -308,11 +311,14 @@ class _MyHomePageState extends State<MyHomePage> {
     if (_switch.isEmpty) {
       return const Text("No Data Here Yet");
     }
+    int offset = 0;
+    bool justFlipped = false;
 
     return CustomScrollView(
       slivers: [
         SliverList(delegate:
             SliverChildBuilderDelegate((BuildContext context, int index) {
+          index = index - offset;
           if (_switch.length - index == 1) {
             pk.getMoreSwitches(_switch).then((x) {
               if (x.isNotEmpty) {
@@ -323,6 +329,14 @@ class _MyHomePageState extends State<MyHomePage> {
             });
           }
           if (index < _switch.length) {
+            if ((_switch[index].timestamp.day !=
+                    _switch[(index - 1) % _switch.length].timestamp.day) &
+                !justFlipped) {
+              justFlipped = true;
+              offset++;
+              return Text(dateString(_switch[index].timestamp));
+            }
+            justFlipped = false;
             return getFrontLog(context, index);
           }
           return null;
@@ -332,15 +346,13 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Widget getFrontLog(BuildContext context, int i) {
-    // TODO: group by days
-
     Switches _swit = _switch[i];
 
     List<Member> fronters = [];
     for (var member in _swit.members) {
       fronters.add(membersLookup[member] ?? defaultMember(member));
     }
-    
+
     Widget frontersWidget = fronters.isEmpty ? const Spacer() :Column(children: [
       for (var i = 0; i <= (fronters.length / 3); i++)
         Row(
